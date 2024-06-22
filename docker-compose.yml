@@ -38,8 +38,7 @@ services:
       - db
 
   ngrok:
-    build: ./ngrok
-    image: plaidinc/pattern-ngrok:1.0.7
+    image: ngrok/ngrok:latest
     command: ["ngrok", "http", "server:5001"]
     ports:
       - 4040:4040
