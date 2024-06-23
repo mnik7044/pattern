@@ -82,7 +82,7 @@ resource "aws_security_group" "app_sg" {
 
 # EC2 Instance
 resource "aws_instance" "app_server" {
-  ami           = "ami-0f58b397bc5c1f2e8"
+  ami           = "ami-04c913012f8977029"
   instance_type = "t2.micro"
   key_name      = "my-key-pair"  # Make sure to create or specify an existing key pair
 
