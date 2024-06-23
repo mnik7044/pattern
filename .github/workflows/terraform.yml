@@ -14,10 +14,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
         with:
-          terraform_version: 1.0.0
+          terraform_version: 1.5.0 # Updated to a more recent version
 
       - name: Terraform Init
         run: terraform init
@@ -30,10 +37,6 @@ jobs:
       - name: Terraform Apply
         run: terraform apply -auto-approve
         working-directory: ./terraform
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
 
   deploy:
     name: Deploy Application
@@ -44,17 +47,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
       - name: Upload deployment script
-        run: scp -o StrictHostKeyChecking=no -i ${{ secrets.AWS_SSH_KEY }} deploy.sh ubuntu@${{ needs.terraform.outputs.public_ip }}:/home/ubuntu/
+        run: |
+          echo "${{ secrets.AWS_SSH_KEY }}" > private_key
+          chmod 600 private_key
+          scp -o StrictHostKeyChecking=no -i private_key deploy.sh ubuntu@${{ needs.terraform.outputs.public_ip }}:/home/ubuntu/
 
       - name: SSH and execute deployment script
-        run: ssh -o StrictHostKeyChecking=no -i ${{ secrets.AWS_SSH_KEY }} ubuntu@${{ needs.terraform.outputs.public_ip }} 'bash /home/ubuntu/deploy.sh'
+        run: |
+          ssh -o StrictHostKeyChecking=no -i private_key ubuntu@${{ needs.terraform.outputs.public_ip }} 'bash /home/ubuntu/deploy.sh'
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
           PLAID_CLIENT_ID: ${{ secrets.PLAID_CLIENT_ID }}
           PLAID_SECRET_SANDBOX: ${{ secrets.PLAID_SECRET_SANDBOX }}
           PLAID_SANDBOX_REDIRECT_URI: ${{ secrets.PLAID_SANDBOX_REDIRECT_URI }}
           PLAID_PRODUCTION_REDIRECT_URI: ${{ secrets.PLAID_PRODUCTION_REDIRECT_URI }}
           PLAID_ENV: ${{ secrets.PLAID_ENV }}
+
+      - name: Clean up
+        if: always()
+        run: rm -f private_key
