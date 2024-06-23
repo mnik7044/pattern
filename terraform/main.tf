@@ -4,7 +4,7 @@ provider "aws" {
 
 # VPC
 resource "aws_vpc" "main" {
-  cidr_block = "10.0.0.0/16"
+  cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
 
   tags = {
@@ -14,9 +14,9 @@ resource "aws_vpc" "main" {
 
 # Public Subnet
 resource "aws_subnet" "public" {
-  vpc_id     = aws_vpc.main.id
-  cidr_block = "10.0.1.0/24"
-  availability_zone = "ap-south-1a"  # Adjust as needed
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.1.0/24"
+  availability_zone       = "ap-south-1a"  # Adjust as needed
   map_public_ip_on_launch = true
 
   tags = {
@@ -104,7 +104,17 @@ resource "aws_instance" "app_server" {
               EOF
 }
 
+# Elastic IP
+resource "aws_eip" "app_eip" {
+  vpc = true
+  instance = aws_instance.app_server.id
+
+  tags = {
+    Name = "App EIP"
+  }
+}
+
 # Output the public IP of the EC2 instance
 output "public_ip" {
-  value = 52.95.249.219
-}   
+  value = aws_eip.app_eip.public_ip
+}
