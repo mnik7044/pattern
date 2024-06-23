@@ -1,0 +1,57 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.0.0
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+
+  deploy:
+    name: Deploy Application
+    needs: terraform
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Upload deployment script
+        run: scp -o StrictHostKeyChecking=no -i ${{ secrets.AWS_SSH_KEY }} deploy.sh ubuntu@${{ needs.terraform.outputs.public_ip }}:/home/ubuntu/
+
+      - name: SSH and execute deployment script
+        run: ssh -o StrictHostKeyChecking=no -i ${{ secrets.AWS_SSH_KEY }} ubuntu@${{ needs.terraform.outputs.public_ip }} 'bash /home/ubuntu/deploy.sh'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          PLAID_CLIENT_ID: ${{ secrets.PLAID_CLIENT_ID }}
+          PLAID_SECRET_SANDBOX: ${{ secrets.PLAID_SECRET_SANDBOX }}
+          PLAID_SANDBOX_REDIRECT_URI: ${{ secrets.PLAID_SANDBOX_REDIRECT_URI }}
+          PLAID_PRODUCTION_REDIRECT_URI: ${{ secrets.PLAID_PRODUCTION_REDIRECT_URI }}
+          PLAID_ENV: ${{ secrets.PLAID_ENV }}

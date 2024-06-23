@@ -64,3 +64,44 @@ dist/
 
 # vscode
 .vscode/
+
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+
+# Ignore override files as they are usually used to override resources locally
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ignore plan files
+*.tfplan
+
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
+
+# Ignore sensitive variable files
+*.tfvars
+*.tfvars.json
+
+# Ignore sensitive backend files
+backend.tfvars
+backend.tfvars.json
+
+# Ignore directories used for temporary purposes
+.terraform.d
+
+# Ignore the Terraform lock file (optional)
+.terraform.lock.hcl
+
+# Ignore IDE files (add more as needed for your specific IDE)
+.vscode/
+.idea/
