@@ -9,6 +9,8 @@ jobs:
   terraform:
     name: Terraform
     runs-on: ubuntu-latest
+    outputs:
+      instance_ip: ${{ steps.terraform_output.outputs.instance_ip }}
 
     steps:
       - name: Checkout code
@@ -24,7 +26,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
         with:
-          terraform_version: 1.5.0 # Updated to a more recent version
+          terraform_version: 1.5.0
 
       - name: Terraform Init
         run: terraform init
@@ -36,6 +38,15 @@ jobs:
 
       - name: Terraform Apply
         run: terraform apply -auto-approve
+        working-directory: ./terraform
+
+      - name: Terraform Output
+        run: terraform output
+        working-directory: ./terraform
+
+      - name: Set output
+        id: terraform_output
+        run: echo "instance_ip=$(terraform output -raw public_ip)" >> $GITHUB_OUTPUT
         working-directory: ./terraform
 
   deploy:
@@ -54,15 +65,36 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Upload deployment script
+      - name: Debug Info
         run: |
+          echo "Instance IP: ${{ needs.terraform.outputs.instance_ip }}"
           echo "${{ secrets.AWS_SSH_KEY }}" > private_key
           chmod 600 private_key
-          scp -o StrictHostKeyChecking=no -i private_key deploy.sh ubuntu@${{ needs.terraform.outputs.public_ip }}:/home/ubuntu/
+          cat private_key | wc -l
+          ls -l private_key
+
+      - name: Wait for instance to be ready
+        run: |
+          echo "Waiting for instance to be ready..."
+          sleep 60
+
+      - name: Upload deployment script
+        run: |
+          scp -o StrictHostKeyChecking=no -i private_key deploy.sh ec2-user@${{ needs.terraform.outputs.instance_ip }}:/home/ec2-user/
 
       - name: SSH and execute deployment script
         run: |
-          ssh -o StrictHostKeyChecking=no -i private_key ubuntu@${{ needs.terraform.outputs.public_ip }} 'bash /home/ubuntu/deploy.sh'
+          for i in {1..5}; do
+            echo "Attempt $i: Connecting to ${{ needs.terraform.outputs.instance_ip }}"
+            if ssh -o StrictHostKeyChecking=no -i private_key ec2-user@${{ needs.terraform.outputs.instance_ip }} 'bash /home/ec2-user/deploy.sh'; then
+              echo "Successfully connected and executed script"
+              exit 0
+            fi
+            echo "Connection failed. Waiting 30 seconds before retrying..."
+            sleep 30
+          done
+          echo "Failed to connect after 5 attempts"
+          exit 1
         env:
           PLAID_CLIENT_ID: ${{ secrets.PLAID_CLIENT_ID }}
           PLAID_SECRET_SANDBOX: ${{ secrets.PLAID_SECRET_SANDBOX }}
