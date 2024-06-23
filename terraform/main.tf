@@ -106,5 +106,5 @@ resource "aws_instance" "app_server" {
 
 # Output the public IP of the EC2 instance
 output "public_ip" {
-  value = aws_instance.app_server.public_ip
-}
+  value = 52.95.249.219
+}   
