@@ -9,6 +9,8 @@ jobs:
   terraform:
     name: Terraform
     runs-on: ubuntu-latest
+    outputs:
+      public_ip: ${{ steps.terraform_output.outputs.public_ip }}
 
     steps:
       - name: Checkout code
@@ -24,7 +26,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
         with:
-          terraform_version: 1.5.0 # Updated to a more recent version
+          terraform_version: 1.5.0
 
       - name: Terraform Init
         run: terraform init
@@ -36,6 +38,14 @@ jobs:
 
       - name: Terraform Apply
         run: terraform apply -auto-approve
+        working-directory: ./terraform
+
+      - name: Wait for EIP association
+        run: sleep 30
+
+      - name: Output Public IP
+        id: terraform_output
+        run: echo "public_ip=$(terraform output -raw public_ip)" >> $GITHUB_OUTPUT
         working-directory: ./terraform
 
   deploy:
@@ -58,11 +68,11 @@ jobs:
         run: |
           echo "${{ secrets.AWS_SSH_KEY }}" > private_key
           chmod 600 private_key
-          scp -o StrictHostKeyChecking=no -i private_key deploy.sh ubuntu@${{ needs.terraform.outputs.public_ip }}:/home/ubuntu/
+          scp -v -o StrictHostKeyChecking=no -i private_key deploy.sh ec2-user@${{ needs.terraform.outputs.public_ip }}:/home/ec2-user/
 
       - name: SSH and execute deployment script
         run: |
-          ssh -o StrictHostKeyChecking=no -i private_key ubuntu@${{ needs.terraform.outputs.public_ip }} 'bash /home/ubuntu/deploy.sh'
+          ssh -v -o StrictHostKeyChecking=no -i private_key ec2-user@${{ needs.terraform.outputs.public_ip }} 'bash /home/ec2-user/deploy.sh'
         env:
           PLAID_CLIENT_ID: ${{ secrets.PLAID_CLIENT_ID }}
           PLAID_SECRET_SANDBOX: ${{ secrets.PLAID_SECRET_SANDBOX }}
