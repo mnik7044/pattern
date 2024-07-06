@@ -116,5 +116,6 @@ resource "aws_eip" "app_eip" {
 
 # Output the public IP of the EC2 instance
 output "public_ip" {
-  value = aws_eip.app_eip.public_ip
+  value       = aws_eip.app_eip.public_ip
+  description = "The public IP of the EC2 instance"
 }

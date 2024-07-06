@@ -43,10 +43,34 @@ jobs:
       - name: Wait for EIP association
         run: sleep 30
 
+      - name: Check Terraform State
+        run: terraform show
+        working-directory: ./terraform
+
+      - name: List Terraform Outputs
+        run: terraform output
+        working-directory: ./terraform
+
       - name: Output Public IP
         id: terraform_output
-        run: echo "public_ip=$(terraform output -raw public_ip)" >> $GITHUB_OUTPUT
+        run: |
+          echo "Attempting to retrieve public IP..."
+          PUBLIC_IP=$(terraform output -raw public_ip || echo "FAILED")
+          echo "Retrieved value: $PUBLIC_IP"
+          if [ "$PUBLIC_IP" != "FAILED" ]; then
+            echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
+          else
+            echo "Failed to retrieve public IP"
+            exit 1
+          fi
         working-directory: ./terraform
+
+      - name: Check EC2 and EIP Status
+        run: |
+          echo "Checking EC2 instance status..."
+          aws ec2 describe-instances --filters "Name=tag:Name,Values=App Server" --query "Reservations[].Instances[].{State:State.Name,PublicIP:PublicIpAddress}"
+          echo "Checking Elastic IP status..."
+          aws ec2 describe-addresses --query "Addresses[].{PublicIP:PublicIp,InstanceId:InstanceId}"
 
   deploy:
     name: Deploy Application
